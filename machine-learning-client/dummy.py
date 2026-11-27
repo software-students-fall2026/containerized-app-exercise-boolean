@@ -7,6 +7,7 @@ from pymongo import MongoClient
 
 
 def main():
+    """Check MongoDB and keep the container running for now."""
     client = MongoClient(os.environ["MONGO_URI"])
     client.admin.command("ping")
     print("Connected to MongoDB", flush=True)
