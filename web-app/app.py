@@ -7,8 +7,8 @@ app = Flask(__name__)
 
 @app.get("/")
 def home():
-     """Show that the web container is running."""
-     return "app is running."
+    """Show that the web container is running."""
+    return "app is running."
 
 
 if __name__ == "__main__":
