@@ -1,4 +1,7 @@
+"""Utilities for validating grocery product barcodes."""
+
 def is_valid_barcode(barcode):
+    """Return True if a UPC-A or EAN-13 barcode passes validation."""
     if not isinstance(barcode, str):
         return False
 
