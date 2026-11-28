@@ -1,4 +1,3 @@
-
 """Tests for UPC-A and EAN-13 grocery barcode validation."""
 
 import sys
