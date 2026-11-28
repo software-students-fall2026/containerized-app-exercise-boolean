@@ -1,13 +1,16 @@
 """Read a barcode photo and find its product."""
 
 import io
+import os
+import time
 import requests
 import zxingcpp
 from PIL import Image
+from pymongo import MongoClient
 
 PRODUCT_URL = "https://world.openfoodfacts.org/api/v2/product/{}.json"
 USER_AGENT = (
-    "BooleanBarcode/1.0 "
+    "Boolean/1.0 "
     "(https://github.com/software-students-fall2026/containerized-app-exercise-boolean)"
 )
 
@@ -15,7 +18,7 @@ USER_AGENT = (
 def read_barcode(photo):
     """Find the barcode number in photo bytes."""
     try:
-        # Pillow opens the uploaded bytes as an image.
+        # Pillow package opens the uploaded bytes as an image.
         with Image.open(io.BytesIO(photo)) as image:
             picture = image.convert("RGB")
     except (OSError, ValueError) as error:
@@ -53,3 +56,51 @@ def lookup_product(barcode):
         "image_url": product.get("image_front_url") or "",
         "categories": product.get("categories_tags") or [],
     }
+
+
+def process_one_scan(collection):
+    """Process one pending photo from MongoDB, if there is one."""
+    # The frontend will save the new uploads with status "pending".
+    scan = collection.find_one({"status": "pending"})
+    if scan is None:
+        return False
+
+    barcode = None
+    try:
+        photo = scan.get("barcode_image")
+        if not photo:
+            raise ValueError("No barcode photo was uploaded.")
+
+        barcode = read_barcode(photo)
+        product = lookup_product(barcode)
+        result = {"status": "completed", "barcode": barcode, "product": product}
+    except (ValueError, requests.RequestException) as error:
+        # Save an error so the frontend can tell the shopper what happened.
+        result = {"status": "failed", "error": str(error)}
+        if barcode is not None:
+            result["barcode"] = barcode
+
+    collection.update_one({"_id": scan["_id"]}, {"$set": result})
+    return True
+
+
+def process_scans():
+    """Keep checking MongoDB for uploaded scans."""
+    mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+    db_name = os.getenv("MONGO_DB_NAME", "boolean_barcode")
+
+    client = MongoClient(mongo_uri)
+    client.admin.command("ping")
+    collection = client[db_name]["scans"]
+    print("Connected to MongoDB", flush=True)
+
+    try:
+        while True:
+            process_one_scan(collection)
+            time.sleep(2)
+    finally:
+        client.close()
+
+
+if __name__ == "__main__":
+    process_scans()

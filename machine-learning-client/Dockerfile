@@ -9,4 +9,4 @@ RUN pipenv sync --system
 
 COPY . .
 
-CMD ["python", "dummy.py"]
+CMD ["python", "main.py"]
