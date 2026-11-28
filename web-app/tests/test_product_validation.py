@@ -5,6 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from product_validation import is_valid_barcode
 
+
 def test_valid_upc_barcode():
     assert is_valid_barcode("012345678905")
 
@@ -15,6 +16,7 @@ def test_valid_ean_barcode():
 
 def test_short_barcode():
     assert not is_valid_barcode("12345")
+
 
 def test_barcode_with_letters():
     assert not is_valid_barcode("hello1234567")
