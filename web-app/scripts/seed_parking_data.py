@@ -23,6 +23,25 @@ def generate_parking_data(total_spaces=10):
     return spaces
 
 
+def validate_parking_data(space):
+    """Check whether a parking record has valid fields and types."""
+    if not isinstance(space, dict):
+        return False
+
+    spot_id = space.get("spot_id")
+    occupied = space.get("occupied")
+    timestamp = space.get("timestamp")
+
+    return (
+        isinstance(spot_id, str)
+        and bool(spot_id.strip())
+        and isinstance(occupied, bool)
+        and isinstance(timestamp, datetime)
+        and timestamp.tzinfo is not None
+        and timestamp.utcoffset() is not None
+    )
+
+
 def seed_database():
     """Insert sample records into MongoDB."""
     mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
@@ -37,6 +56,9 @@ def seed_database():
         spaces = generate_parking_data()
 
         for space in spaces:
+            if not validate_parking_data(space):
+                raise ValueError(f"Invalid parking record: {space}")
+
             collection.update_one(
                 {"spot_id": space["spot_id"]},
                 {"$set": space},
