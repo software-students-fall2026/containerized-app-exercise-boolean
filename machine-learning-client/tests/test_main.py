@@ -99,7 +99,6 @@ class TestScanProcessing:
             {"$set": {"status": "failed", "error": "No barcode photo was uploaded."}},
         )
 
-
     def test_successful_scan(self):
         """Save the barcode, product, and online offers."""
         collection = Mock()
@@ -128,7 +127,6 @@ class TestScanProcessing:
                 }
             },
         )
-
 
     def test_process_scans(self):
         """Check that MongoDB closes when scanning stops."""

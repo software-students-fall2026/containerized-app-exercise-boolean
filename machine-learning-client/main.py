@@ -126,11 +126,13 @@ def lookup_offers(product):
         link = store.get("link")
 
         if price is not None and link:
-            offers.append({
-                "store": store.get("name") or "Online store",
-                "price": price,
-                "link": link,
-            })
+            offers.append(
+                {
+                    "store": store.get("name") or "Online store",
+                    "price": price,
+                    "link": link,
+                }
+            )
 
     # Sort from lowest price to highest price
     offers.sort(key=lambda offer: offer["price"])
