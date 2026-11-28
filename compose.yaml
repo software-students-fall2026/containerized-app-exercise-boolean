@@ -30,6 +30,7 @@ services:
     environment:
       MONGO_URI: mongodb://mongodb:27017/
       MONGO_DB_NAME: boolean_barcode
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
     depends_on:
       mongodb:
         condition: service_healthy

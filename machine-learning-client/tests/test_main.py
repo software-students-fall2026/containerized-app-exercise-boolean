@@ -99,8 +99,9 @@ class TestScanProcessing:
             {"$set": {"status": "failed", "error": "No barcode photo was uploaded."}},
         )
 
+
     def test_successful_scan(self):
-        """Save the barcode and product for a successful scan."""
+        """Save the barcode, product, and online offers."""
         collection = Mock()
         collection.find_one.return_value = {
             "_id": 2,
@@ -109,8 +110,12 @@ class TestScanProcessing:
         }
 
         with patch("main.read_barcode", return_value="12345678"):
-            with patch("main.lookup_product", return_value={"name": "Milk"}):
-                main.process_one_scan(collection)
+            with patch(
+                "main.lookup_product",
+                return_value={"name": "Milk"},
+            ):
+                with patch("main.lookup_offers", return_value=[]):
+                    main.process_one_scan(collection)
 
         collection.update_one.assert_called_once_with(
             {"_id": 2},
@@ -119,9 +124,11 @@ class TestScanProcessing:
                     "status": "completed",
                     "barcode": "12345678",
                     "product": {"name": "Milk"},
+                    "offers": [],
                 }
             },
         )
+
 
     def test_process_scans(self):
         """Check that MongoDB closes when scanning stops."""
