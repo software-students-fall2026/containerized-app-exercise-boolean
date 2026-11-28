@@ -9,6 +9,7 @@ from PIL import Image
 from pymongo import MongoClient
 
 PRODUCT_URL = "https://world.openfoodfacts.org/api/v2/product/{}.json"
+SERPAPI_URL = "https://serpapi.com/search.json"
 USER_AGENT = (
     "Boolean/1.0 "
     "(https://github.com/software-students-fall2026/containerized-app-exercise-boolean)"
@@ -58,6 +59,88 @@ def lookup_product(barcode):
     }
 
 
+def lookup_offers(product):
+    """Find online stores selling the product."""
+    api_key = os.getenv("SERPAPI_KEY")
+
+    if not api_key:
+        raise ValueError("SerpApi key is missing.")
+
+    # Build a search query using the product name and brand
+    query = f'{product.get("brand", "")} {product["name"]}'.strip()
+
+    # Search Google Shopping through SerpApi
+    response = requests.get(
+        SERPAPI_URL,
+        params={
+            "engine": "google_shopping",
+            "q": query,
+            "gl": "us",
+            "api_key": api_key,
+        },
+        timeout=10,
+    )
+
+    response.raise_for_status()
+    data = response.json()
+
+    if data.get("error"):
+        raise ValueError(data["error"])
+
+    # Find the matching product
+    product_id = None
+
+    for item in data.get("shopping_results", []):
+        if product["name"].lower() in item.get("title", "").lower():
+            product_id = item.get("product_id")
+            if product_id:
+                break
+
+    # No matching product found
+    if not product_id:
+        return []
+
+    # Get the stores selling this product
+    response = requests.get(
+        SERPAPI_URL,
+        params={
+            "engine": "google_product",
+            "product_id": product_id,
+            "offer_view": "true",
+            "gl": "us",
+            "api_key": api_key,
+        },
+        timeout=10,
+    )
+
+    response.raise_for_status()
+    data = response.json()
+
+    if data.get("error"):
+        raise ValueError(data["error"])
+
+    offers = []
+
+    for store in data.get("product_results", {}).get("stores", []):
+        price = store.get("extracted_price")
+        link = store.get("link")
+
+        if price is not None and link:
+            offers.append(
+                {
+                    "store": store.get("name") or "Online store",
+                    "price": price,
+                    "link": link,
+                }
+            )
+
+    # Sort from lowest price to highest price
+    offers.sort(key=lambda offer: offer["price"])
+
+    # Return up to five offers
+    return offers[:5]
+
+
 def process_one_scan(collection):
     """Process one pending photo from MongoDB, if there is one."""
     # The frontend will save the new uploads with status "pending".
@@ -74,6 +157,13 @@ def process_one_scan(collection):
         barcode = read_barcode(photo)
         product = lookup_product(barcode)
         result = {"status": "completed", "barcode": barcode, "product": product}
+
+        try:
+            result["offers"] = lookup_offers(product)
+        except (ValueError, requests.RequestException):
+            result["offers"] = []
+            result["offers_error"] = "Online prices are unavailable."
+
     except (ValueError, requests.RequestException) as error:
         # Save an error so the frontend can tell the shopper what happened.
         result = {"status": "failed", "error": str(error)}
